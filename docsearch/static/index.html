@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Document Search</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg:#10151b; --side:#141b22; --surface:#1a222b; --raised:#212b36; --line:#2a3542;
+  --ink:#e9e7e2; --muted:#8e99a6; --amber:#e3a63d; --amber-ink:#1c1405; --ok:#62b78d; --bad:#d9705f;
+  --mono:ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;grid-template-columns:300px 1fr}
+button{font:inherit;cursor:pointer;color:inherit}
+aside{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:100vh}
+.logo{padding:22px 22px 14px;font:600 18px/1 var(--mono);letter-spacing:-.02em}
+.logo span{color:var(--amber)}
+.drop{margin:8px 18px 14px;border:1.5px dashed #3a4859;border-radius:10px;padding:18px 12px;text-align:center;color:var(--muted);font-size:13.5px;cursor:pointer;transition:.15s}
+.drop:hover,.drop.over{border-color:var(--amber);color:var(--ink);background:#1b222b}
+.drop b{display:block;color:var(--ink);font-size:14.5px;margin-bottom:2px}
+.docs{flex:1;overflow:auto;padding:0 10px}
+.docs h3{margin:6px 12px;font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.doc{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px}
+.doc:hover{background:var(--surface)}
+.doc .n{flex:1;min-width:0}
+.doc .n b{display:block;font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc .n span{color:var(--muted);font-size:12px;font-family:var(--mono)}
+.doc .st{font:12px var(--mono);color:var(--amber)}
+.doc .st.ok{color:var(--ok)} .doc .st.fail{color:var(--bad)}
+.x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px;border-radius:6px;visibility:hidden}
+.doc:hover .x{visibility:visible}.x:hover{color:var(--bad);background:var(--raised)}
+.foot{padding:14px 22px;border-top:1px solid var(--line);color:var(--muted);font:12px var(--mono)}
+main{padding:40px min(6vw,72px) 60px;max-width:960px;width:100%}
+h1{font-size:28px;letter-spacing:-.02em;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 24px}
+.ask{display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
+.ask:focus-within{border-color:var(--amber)}
+.ask textarea{flex:1;background:none;border:0;outline:0;color:var(--ink);font:inherit;resize:none;padding:8px 10px;min-height:46px}
+.go{background:var(--amber);color:var(--amber-ink);border:0;border-radius:8px;padding:0 22px;font-weight:700}
+.go:disabled{opacity:.5;cursor:default}
+.answer{margin-top:28px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px}
+.tag{display:inline-block;font:600 11.5px var(--mono);text-transform:uppercase;letter-spacing:.08em;padding:3px 9px;border-radius:5px;margin-bottom:12px}
+.tag.ok{background:#1d3328;color:var(--ok)} .tag.no{background:#38211d;color:var(--bad)}
+.text{font-size:16.5px;line-height:1.65;white-space:pre-wrap}
+.cite{display:inline-block;font:600 11.5px var(--mono);background:#3a2f16;color:var(--amber);border:0;border-radius:5px;padding:0 6px;margin:0 2px;vertical-align:1px}
+.cite:hover{background:var(--amber);color:var(--amber-ink)}
+h2{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:30px 0 10px}
+.src{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;transition:.2s}
+.src.hl{border-color:var(--amber);background:#241f12}
+.src .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.src .num{font:700 12px var(--mono);background:var(--raised);border-radius:5px;padding:1px 7px}
+.src .file{font-weight:600}
+.src .pg{color:var(--muted);font:12.5px var(--mono)}
+.src .used{font:11px var(--mono);color:var(--ok);margin-left:auto}
+.bar{height:4px;background:var(--raised);border-radius:2px;margin:10px 0 8px;overflow:hidden;max-width:240px}
+.bar i{display:block;height:100%;background:var(--amber)}
+.snip{color:var(--muted);font-size:13.5px}
+.empty{color:var(--muted);margin-top:40px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--raised);border:1px solid var(--line);padding:10px 18px;border-radius:8px;font-size:14px}
+@media(max-width:820px){body{grid-template-columns:1fr}aside{min-height:0;border-right:0;border-bottom:1px solid var(--line)}.docs{max-height:200px}main{padding:24px 18px}}
+</style>
+</head>
+<body>
+<aside>
+  <div class="logo">doc<span>/</span>search</div>
+  <div class="drop" id="drop" tabindex="0"><b>Drop files or click to upload</b>PDF, Markdown or text · indexed instantly</div>
+  <input type="file" id="file" multiple accept=".pdf,.md,.txt" hidden>
+  <div class="docs"><h3>Library</h3><div id="docs"></div></div>
+  <div class="foot" id="foot">…</div>
+</aside>
+<main>
+  <h1>Ask your documents</h1>
+  <p class="lead">Answers come only from what you have indexed, with citations you can check.</p>
+  <div class="ask">
+    <textarea id="q" rows="1" placeholder="e.g. How many days of sick leave do employees get?"></textarea>
+    <button class="go" id="go">Ask</button>
+  </div>
+  <div id="out"><p class="empty">Upload a document, then ask a question about it.</p></div>
+</main>
+<div class="toast" id="toast" hidden></div>
+<script>
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,3500)}
+async function api(path, opts){
+  const r=await fetch(path,opts);
+  if(!r.ok){let d=r.statusText;try{d=(await r.json()).detail||d}catch(e){}throw new Error(typeof d==='string'?d:JSON.stringify(d))}
+  return r.json();
+}
+const status = {};   // file name -> {t:'..',cls:''} while uploading
+
+async function refresh(){
+  try{
+    const [docs, h] = await Promise.all([api('/documents'), api('/health')]);
+    const box=$('docs'); box.textContent='';
+    Object.keys(status).filter(n=>!docs.some(d=>d.file===n)).forEach(n=>{
+      const r=el('div','doc'); const t=el('div','n'); t.append(el('b','',n)); r.append(t, el('span','st '+status[n].cls,status[n].t)); box.append(r);
+    });
+    if(!docs.length && !Object.keys(status).length) box.append(el('p','empty','Nothing indexed yet.'));
+    docs.forEach(d=>{
+      const r=el('div','doc'); const t=el('div','n'); t.append(el('b','',d.file), el('span','',d.chunks+' chunk'+(d.chunks===1?'':'s')));
+      const x=el('button','x','×'); x.title='Remove'; x.onclick=async()=>{ if(!confirm('Remove '+d.file+' from the index?'))return; try{await api('/documents/'+encodeURIComponent(d.file),{method:'DELETE'});}catch(e){toast(e.message)} refresh(); };
+      r.append(t,x); box.append(r);
+    });
+    $('foot').textContent=h.backend+' · '+h.store+' · '+h.chunks+' chunks';
+  }catch(e){ $('foot').textContent='server unreachable'; }
+}
+async function upload(files){
+  for(const f of files){
+    status[f.name]={t:'indexing…',cls:''}; refresh();
+    const fd=new FormData(); fd.append('file',f);
+    try{ await api('/documents',{method:'POST',body:fd}); delete status[f.name]; }
+    catch(e){ status[f.name]={t:'failed',cls:'fail'}; toast(f.name+': '+e.message); setTimeout(()=>{delete status[f.name];refresh()},4000); }
+    await refresh();
+  }
+}
+const drop=$('drop');
+drop.onclick=()=>$('file').click();
+drop.onkeydown=e=>{if(e.key==='Enter')$('file').click()};
+$('file').onchange=e=>{upload([...e.target.files]);e.target.value=''};
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>upload([...e.dataTransfer.files]));
+
+function renderAnswer(a){
+  const out=$('out'); out.textContent='';
+  const box=el('div','answer');
+  box.append(el('span','tag '+(a.grounded?'ok':'no'), a.grounded?'Grounded in your documents':'Not found in your documents'));
+  const t=el('div','text');
+  a.answer.split(/(\[\d+\])/).forEach(part=>{
+    const m=part.match(/^\[(\d+)\]$/);
+    if(m){ const b=el('button','cite',m[1]); b.title='Show source '+m[1]; b.onclick=()=>{const s=$('src'+m[1]); if(!s)return; s.scrollIntoView({behavior:'smooth',block:'center'}); s.classList.add('hl'); setTimeout(()=>s.classList.remove('hl'),1600)}; t.append(b); }
+    else t.append(document.createTextNode(part));
+  });
+  box.append(t); out.append(box);
+  if(a.sources.length){
+    out.append(el('h2','','Sources'));
+    a.sources.forEach(s=>{
+      const c=el('div','src'); c.id='src'+s.n;
+      const h=el('div','head'); h.append(el('span','num','['+s.n+']'),el('span','file',s.file),el('span','pg','page '+s.page));
+      if(s.cited) h.append(el('span','used','cited in answer'));
+      const bar=el('div','bar'); const i=el('i'); i.style.width=Math.max(4,Math.min(100,Math.round(s.score*100)))+'%'; bar.append(i);
+      c.append(h,bar,el('div','snip',s.snippet+(s.snippet.length>=240?'…':''))); out.append(c);
+    });
+  }
+}
+async function ask(){
+  const q=$('q').value.trim(); if(q.length<3) return;
+  $('go').disabled=true; $('go').textContent='Thinking…';
+  try{ renderAnswer(await api('/ask',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q})})); }
+  catch(e){ toast(e.message); }
+  $('go').disabled=false; $('go').textContent='Ask';
+}
+$('go').onclick=ask;
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask()}});
+refresh();
+</script>
+</body>
+</html>
