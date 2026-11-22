@@ -18,7 +18,7 @@ flowchart LR
     Q[Question] --> R[retrieve top-k + relevance filter]
     V --> R
     R -->|nothing relevant| N["I couldn't find this in your documents"]
-    R --> G[ChatOllama<br/>grounded prompt] --> A[Answer with [1] [2] citations]
+    R --> G[ChatOllama<br/>grounded prompt] --> A["Answer with [1] [2] citations"]
 ```
 
 - **Grounded answers:** the model may only use the numbered passages, must cite them as `[n]`, and
